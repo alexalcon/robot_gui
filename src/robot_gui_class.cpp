@@ -4,66 +4,156 @@
 RobotGUI::RobotGUI() {
     ros::NodeHandle nh;
 
-    robotinfo_topic = "robot_info";
+    // general robot info area members initialization
+    robotinfo_topic = "robot_info"; // topic name for general robot info area  
     robotinfo_sub = nh.subscribe<robotinfo_msgs::RobotInfo10Fields>(this->robotinfo_topic, 1000, 
                                                                     &RobotGUI::robotinfoCallback, this);
+    
+    // teleoperation buttons members initialization
+    velocity_topic = "cmd_vel"; // topic name for velocity teleoperation buttons
+    velocity_pub = nh.advertise<geometry_msgs::Twist>(this->velocity_topic, 10);
+    velocity_timer = nh.createTimer(ros::Duration(0.1), &RobotGUI::publishVelocity, this);
 }
-
-// general robot info area members 
-//-----------------------------------------------------------------------------------------------------
-// subscriber callback function for general robot info area
-void RobotGUI::robotinfoCallback(const robotinfo_msgs::RobotInfo10Fields::ConstPtr& robotinfo_data) {
-    this->robotinfo_data = *robotinfo_data;
-    last_message_time = std::chrono::steady_clock::now(); // update the last message time
-    ROS_DEBUG("Robot info data updated.");
-}
-//-----------------------------------------------------------------------------------------------------
 
 // methods to make up the GUI app
-//---------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+// GENERAL ROBOT INFFO AREA
 // display each data field from the message
 void RobotGUI::generalInfoArea(cv::Mat& frame) {
-    // create window at (40, 20) with size 250x80 (width x height) and title
+    // create window at (10, 10) with size 380x203 (width x height) and title
     cvui::window(frame, 10, 10, 380, 203, "Topic: " + this->robotinfo_topic);
 
     // starting position for displaying text
     int y = 35;
     int dy = 18; // vertical spacing between lines
 
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 01: %s", this->robotinfo_data.data_field_01.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 01: %s", 
+                 this->robotinfo_data.data_field_01.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 02: %s", this->robotinfo_data.data_field_02.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 02: %s", 
+                 this->robotinfo_data.data_field_02.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 03: %s", this->robotinfo_data.data_field_03.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 03: %s", 
+                 this->robotinfo_data.data_field_03.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 04: %s", this->robotinfo_data.data_field_04.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 04: %s", 
+                 this->robotinfo_data.data_field_04.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 05: %s", this->robotinfo_data.data_field_05.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 05: %s", 
+                 this->robotinfo_data.data_field_05.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 06: %s", this->robotinfo_data.data_field_06.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 06: %s", 
+                 this->robotinfo_data.data_field_06.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 07: %s", this->robotinfo_data.data_field_07.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 07: %s", 
+                 this->robotinfo_data.data_field_07.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 08: %s", this->robotinfo_data.data_field_08.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 08: %s", 
+                 this->robotinfo_data.data_field_08.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 09: %s", this->robotinfo_data.data_field_09.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 09: %s", 
+                 this->robotinfo_data.data_field_09.c_str());
     y += dy;
-    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 10: %s", this->robotinfo_data.data_field_10.c_str());
+    cvui::printf(frame, 15, y, 0.4, 0x80ff00, "Data Field 10: %s", 
+                 this->robotinfo_data.data_field_10.c_str());
     y += dy;
 }
 
+// TELEOPERATION BUTTONS
+// velocity teleoperation buttons
+void RobotGUI::teleoperationButtons(cv::Mat& frame) {
+    int infoHeight = 180;               // same as used in generalInfoArea
+    int gap = 35;                       // gap size between info area and buttons
+    int baseY = infoHeight + gap + 10;  // adjust baseY to account for the gap
 
-//---------------------------------------------------------------------------------------------------------------
+    int buttonHeight = 60;
+    int buttonWidth = 120;
+
+    // calculate center positions based on the frame width
+    int centerX = (frame.cols - buttonWidth) / 2;
+
+    // vevlocity buttons logic
+    //-------------------------------------------------------
+    // forward button at the top
+    if (cvui::button(frame, 
+                     centerX, 
+                     baseY, 
+                     buttonWidth, 
+                     buttonHeight, 
+                     "Forward")) {
+        
+        // the button was clicked, update the Twist message
+        velocity_data.linear.x += linear_velocity_step;
+    }
+
+    // middle row buttons
+    if (cvui::button(frame, 
+                     centerX - buttonWidth - 10, 
+                     baseY + buttonHeight + 10, 
+                     buttonWidth, 
+                     buttonHeight, 
+                     "Left")) {
+        // the button was clicked, update the Twist message
+        velocity_data.angular.z += angular_velocity_step;
+    }
+    if (cvui::button(frame, 
+                     centerX, 
+                     baseY + buttonHeight + 10, 
+                     buttonWidth, 
+                     buttonHeight, 
+                     "Stop")) {
+        // the button was clicked, update the Twist message
+        velocity_data.linear.x = 0.0;
+        velocity_data.angular.z = 0.0;
+    }
+    if (cvui::button(frame, 
+                     centerX + buttonWidth + 10, 
+                     baseY + buttonHeight + 10, 
+                     buttonWidth, 
+                     buttonHeight, 
+                     "Right")) {
+        // the button was clicked, update the Twist message
+        velocity_data.angular.z -= angular_velocity_step;     
+    }
+
+    // backward button at the bottom
+    if (cvui::button(frame, 
+                     centerX, 
+                     baseY + 2 * (buttonHeight + 10), 
+                     buttonWidth, buttonHeight, 
+                     "Backward")) {
+        // the button was clicked, update the Twist message
+        velocity_data.linear.x -= linear_velocity_step;
+    }
+    //-------------------------------------------------------
+}
+//---------------------------------------------------------------------------------
 
 // additional utilities for the GUI app
-//-----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------
+// GENERAL ROBOT INFFO AREA
+//######################################################################################################
 // timeout utility for robot info subscriber (general info area)
 void RobotGUI::resetDisplayData() {
     this->robotinfo_data = robotinfo_msgs::RobotInfo10Fields(); // reset to default constructed state
 }
-//-----------------------------------------------------------------------------------------------------
 
-// GUI app window (main method functionality)
+// subscriber callback function for general robot info area
+void RobotGUI::robotinfoCallback(const robotinfo_msgs::RobotInfo10Fields::ConstPtr& robotinfo_data) {
+    this->robotinfo_data = *robotinfo_data;
+    last_message_time = std::chrono::steady_clock::now(); // update the last message time
+    ROS_DEBUG("Robot info data updated.");
+}
+//######################################################################################################
+
+// TELEOPERATION BUTTONS
+// timer callback to publish velocity (teleoperation buttons)
+void RobotGUI::publishVelocity(const ros::TimerEvent&) {
+    velocity_pub.publish(velocity_data);
+}
+//----------------------------------------------------------------------------------------------------------
+
+// GUI app window (main functionality)
 void RobotGUI::run() {
   // this line initializes a cv::Mat object called frame 
   // that represents an image of 1000 pixels in height and 
@@ -86,6 +176,7 @@ void RobotGUI::run() {
 
     // calling GUI methods functionalities  
     generalInfoArea(frame);
+    teleoperationButtons(frame);
     
     // update cvui internal stuff
     cvui::update();
