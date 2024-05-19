@@ -5,6 +5,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <std_msgs/Float64.h>
 #include <geometry_msgs/Twist.h>
 #include <opencv2/opencv.hpp>
 #include "robotinfo_msgs/RobotInfo10Fields.h"
@@ -18,7 +19,7 @@ class RobotGUI {
 // methods that make up the GUI application
 private:
     // GENERAL ROBOT INFFO AREA DECLARATION
-    //----------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------
     // robot info subscriber class members
     //##########################################################################################
     ros::Subscriber robotinfo_sub;
@@ -27,7 +28,7 @@ private:
 
     /**
      * @brief Robot info callback function.
-     * @param nh Pointer to a ROS node handle------fill it .
+     * @param nh Pointer to a ROS node handle------fill it 
      */
     void robotinfoCallback(const robotinfo_msgs::RobotInfo10Fields::ConstPtr& robotinfo_data);
     //##########################################################################################
@@ -39,10 +40,10 @@ private:
 
     void resetDisplayData();
     //########################################################################################## 
-    //----------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------
     
     // TELEOPERATION BUTTONS DECLARATION
-    //----------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     ros::Publisher velocity_pub;
     geometry_msgs::Twist velocity_data;
     std::string velocity_topic;
@@ -51,8 +52,16 @@ private:
     
     ros::Timer velocity_timer;
     void publishVelocity(const ros::TimerEvent&);  // timer callback function
-    //----------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     
+    // CURRENT VELOCITIES
+    //------------------------------------------------------------------------------
+    ros::Subscriber velocities_sub;
+    void velocitiesCallback(const geometry_msgs::Twist::ConstPtr &velocities_data);
+    float linear_velocity = 0.0;
+    float angular_velocity = 0.0;
+    //------------------------------------------------------------------------------
+
     // general GUI data member
     const std::string WINDOW_NAME = "CVUI ROS SIMPLE SUBSCRIBER";
 
@@ -60,7 +69,7 @@ private:
     //------------------------------------------------
     void generalInfoArea(cv::Mat& frame);
     void teleoperationButtons(cv::Mat& frame);
-    // void currentVelocities(cv::Mat& frame);
+    void currentVelocities(cv::Mat& frame);
     // void odometryRobotPosition(cv::Mat& frame);
     // void distanceTraveledService(cv::Mat& frame);
     //------------------------------------------------

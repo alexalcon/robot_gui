@@ -13,10 +13,14 @@ RobotGUI::RobotGUI() {
     velocity_topic = "cmd_vel"; // topic name for velocity teleoperation buttons
     velocity_pub = nh.advertise<geometry_msgs::Twist>(this->velocity_topic, 10);
     velocity_timer = nh.createTimer(ros::Duration(0.1), &RobotGUI::publishVelocity, this);
+
+    // current velocities members initialization
+    velocities_sub = nh.subscribe<geometry_msgs::Twist>(this->velocity_topic, 1000, 
+                                                 &RobotGUI::velocitiesCallback, this);
 }
 
 // methods to make up the GUI app
-//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // GENERAL ROBOT INFFO AREA
 // display each data field from the message
 void RobotGUI::generalInfoArea(cv::Mat& frame) {
@@ -127,10 +131,27 @@ void RobotGUI::teleoperationButtons(cv::Mat& frame) {
     }
     //-------------------------------------------------------
 }
-//---------------------------------------------------------------------------------
+// CURRENT VELOCITIES
+// display current velocities in small GUI windows
+void RobotGUI::currentVelocities(cv::Mat& frame) {
+     // Define positions for the windows
+    int baseY = 435; // This should be adjusted based on your GUI layout needs
+    int windowWidth = 185;
+    int windowHeight = 40;
+    int padding = 10;  // Space between windows
+
+    // Linear velocity window
+    cvui::window(frame, 10, baseY, windowWidth, windowHeight, "Linear Velocity");
+    cvui::printf(frame, 15, baseY + 24, 0.35, 0x33ffff, "Linear velocity: %0.2f m/s", this->linear_velocity);
+
+    // Angular velocity window
+    cvui::window(frame, 10 + windowWidth + padding, baseY, windowWidth, windowHeight, "Angular Velocity");
+    cvui::printf(frame, 15 + windowWidth + padding, baseY + 24, 0.35, 0x33ffff, "Angular velocity: %0.2f rad/s", this->angular_velocity);
+}
+//---------------------------------------------------------------------------------------
 
 // additional utilities for the GUI app
-//----------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------
 // GENERAL ROBOT INFFO AREA
 //######################################################################################################
 // timeout utility for robot info subscriber (general info area)
@@ -151,7 +172,15 @@ void RobotGUI::robotinfoCallback(const robotinfo_msgs::RobotInfo10Fields::ConstP
 void RobotGUI::publishVelocity(const ros::TimerEvent&) {
     velocity_pub.publish(velocity_data);
 }
-//----------------------------------------------------------------------------------------------------------
+
+// CURENT VELOCITIES
+// subscriber callback function for current velocities
+void RobotGUI::velocitiesCallback(const geometry_msgs::Twist::ConstPtr &velocities_data) {
+    this->linear_velocity = velocities_data->linear.x;
+    this->angular_velocity = velocities_data->angular.z;
+    ROS_DEBUG("Robot current velocities data updated.");
+}
+//--------------------------------------------------------------------------------------------------------
 
 // GUI app window (main functionality)
 void RobotGUI::run() {
@@ -177,6 +206,7 @@ void RobotGUI::run() {
     // calling GUI methods functionalities  
     generalInfoArea(frame);
     teleoperationButtons(frame);
+    currentVelocities(frame);
     
     // update cvui internal stuff
     cvui::update();
