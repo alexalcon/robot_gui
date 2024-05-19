@@ -23,6 +23,10 @@ RobotGUI::RobotGUI() {
     position_topic = "odom";
     position_sub = nh.subscribe<nav_msgs::Odometry>(this->position_topic, 1000, 
                                                     &RobotGUI::positionCallback, this);
+    
+    // distance Tracker service client initialization
+    service_name = "get_distance";
+    service_client = nh.serviceClient<std_srvs::Trigger>(this->service_name);
 }
 
 // methods to make up the GUI app
@@ -163,25 +167,52 @@ void RobotGUI::currentVelocities(cv::Mat& frame) {
 void RobotGUI::odometryRobotPosition(cv::Mat& frame) {
     // Set up the window location and size
     int posX = 10;  // Horizontal position of the window on the frame
-    int posY = 500;  // Vertical position from the top
+    int posY = 490;  // Vertical position from the top
     int width = 380; // Width of the window
     int height = 87; // Height of the window
 
     // Create the window for displaying odometry data
     cvui::window(frame, posX, posY, width, height, 
-                 "Estimated robot position based off odometry");
+                 "Estimated Robot Position Based on Odometry Data");
 
     // Display the X, Y, Z coordinates in the window
     int startX = posX + 15;  // Start position for text, slightly indented
     int startY = posY + 25;  // Start position for text, vertically adjusted
     int lineSpacing = 20;    // Space between lines of text
 
-    cvui::printf(frame, startX, startY, 0.6, 0xffffff, 
+    cvui::printf(frame, startX, startY, 0.6, 0xff0000, 
                  "X: %0.17f", this->x_position);
-    cvui::printf(frame, startX, startY + lineSpacing, 0.6, 0xffffff, 
+    cvui::printf(frame, startX, startY + lineSpacing, 0.6, 0x80ff00, 
                  "Y: %0.17f", this->y_position);
-    cvui::printf(frame, startX, startY + 2 * lineSpacing, 0.6, 0xffffff, 
+    cvui::printf(frame, startX, startY + 2 * lineSpacing, 0.6, 0x0000cc, 
                  "Z: %0.17f", this->z_position); 
+}
+
+// 5. DISTANCE TRACKER SERVICE CLIENT
+// service client to display the robot's distance traveled
+void RobotGUI::distanceTraveledServiceClient(cv::Mat& frame) {
+    cvui::window(frame, 10, 590, 380, 50, "Distance Traveled in Meters");
+
+    // call the service
+    if (cvui::button(frame, 30, 655, "Call Service")) {
+      // send the request and wait for a response
+      if (service_client.call(srv_req)) {
+        // print the response message and return true
+        ROS_DEBUG("Response message: %s", srv_req.response.message.c_str());
+        // set latest service call status
+        last_service_call_msg = srv_req.response.message;
+        service_call_counter++;
+      } else {
+        last_service_call_msg = "Service call failed.";
+        service_call_counter = 0;
+      }
+    }
+
+    // display the last response inside the window
+    if (not last_service_call_msg.empty()) {
+      cvui::printf(frame, 20, 617, 0.5, 0xffffff, "%s",
+                   last_service_call_msg.c_str());
+    }
 }
 //---------------------------------------------------------------------------------------
 
@@ -229,18 +260,18 @@ void RobotGUI::positionCallback(const nav_msgs::Odometry::ConstPtr& position_dat
 void RobotGUI::run() {
   // this line initializes a cv::Mat object called frame 
   // that represents an image of 1000 pixels in height and 
-  // 600 pixels in width, with three color channels (RGB) 
-  cv::Mat frame = cv::Mat(1000, 400, CV_8UC3);
+  // 400 pixels in width, with three color channels (RGB) 
+  cv::Mat frame = cv::Mat(695, 400, CV_8UC3);
 
   // init a OpenCV window and tell cvui to use it.
   cv::namedWindow(WINDOW_NAME);
   cvui::init(WINDOW_NAME);
 
   while (ros::ok()) {
-    // timeout config
+    // timeout config to update robot info data
     auto now = std::chrono::steady_clock::now();
     if (now - last_message_time > MESSAGE_TIMEOUT) {
-        resetDisplayData(); // Reset data if timeout has passed
+        resetDisplayData(); // reset data if timeout has passed
     }
 
     // fill the frame with a nice color
@@ -251,6 +282,7 @@ void RobotGUI::run() {
     teleoperationButtons(frame);
     currentVelocities(frame);
     odometryRobotPosition(frame);
+    distanceTraveledServiceClient(frame);
     
     // update cvui internal stuff
     cvui::update();

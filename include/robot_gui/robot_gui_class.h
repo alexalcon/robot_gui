@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ros/subscriber.h"
 #define CVUI_IMPLEMENTATION
 #include "robot_gui/cvui.h"
 
@@ -8,6 +7,7 @@
 #include <std_msgs/String.h>
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
+#include <std_srvs/Trigger.h>
 #include <opencv2/opencv.hpp>
 #include "robotinfo_msgs/RobotInfo10Fields.h"
 
@@ -71,6 +71,16 @@ private:
     float z_position = 0.0;
     //--------------------------------------------------------------------------
 
+    // 5. DISTANCE TRACKER SERVICE CLIENT
+    //----------------------------------
+    ros::ServiceClient service_client;
+    // create a service request
+    std_srvs::Trigger srv_req;
+    std::string service_name;
+    std::string last_service_call_msg;
+    int service_call_counter = 0;
+    //----------------------------------
+
     // general GUI data member
     const std::string WINDOW_NAME = "CVUI ROS SIMPLE SUBSCRIBER";
 
@@ -80,7 +90,7 @@ private:
     void teleoperationButtons(cv::Mat& frame);
     void currentVelocities(cv::Mat& frame);
     void odometryRobotPosition(cv::Mat& frame);
-    // void distanceTraveledService(cv::Mat& frame);
+    void distanceTraveledServiceClient(cv::Mat& frame);
     //------------------------------------------------
 
 public:
