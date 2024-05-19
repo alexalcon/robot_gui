@@ -1,4 +1,5 @@
 #include "robot_gui/robot_gui_class.h"
+#include "nav_msgs/Odometry.h"
 
 // constructor
 RobotGUI::RobotGUI() {
@@ -17,11 +18,16 @@ RobotGUI::RobotGUI() {
     // current velocities members initialization
     velocities_sub = nh.subscribe<geometry_msgs::Twist>(this->velocity_topic, 1000, 
                                                  &RobotGUI::velocitiesCallback, this);
+
+    // robot's position (odometry data) initialization
+    position_topic = "odom";
+    position_sub = nh.subscribe<nav_msgs::Odometry>(this->position_topic, 1000, 
+                                                    &RobotGUI::positionCallback, this);
 }
 
 // methods to make up the GUI app
 //---------------------------------------------------------------------------------------
-// GENERAL ROBOT INFFO AREA
+// 1. GENERAL ROBOT INFFO AREA
 // display each data field from the message
 void RobotGUI::generalInfoArea(cv::Mat& frame) {
     // create window at (10, 10) with size 380x203 (width x height) and title
@@ -63,7 +69,7 @@ void RobotGUI::generalInfoArea(cv::Mat& frame) {
     y += dy;
 }
 
-// TELEOPERATION BUTTONS
+// 2. TELEOPERATION BUTTONS
 // velocity teleoperation buttons
 void RobotGUI::teleoperationButtons(cv::Mat& frame) {
     int infoHeight = 180;               // same as used in generalInfoArea
@@ -131,28 +137,57 @@ void RobotGUI::teleoperationButtons(cv::Mat& frame) {
     }
     //-------------------------------------------------------
 }
-// CURRENT VELOCITIES
+// 3. CURRENT VELOCITIES
 // display current velocities in small GUI windows
 void RobotGUI::currentVelocities(cv::Mat& frame) {
-     // Define positions for the windows
-    int baseY = 435; // This should be adjusted based on your GUI layout needs
+    // define positions for the windows
+    int baseY = 435; // this should be adjusted based on your GUI layout needs
     int windowWidth = 185;
     int windowHeight = 40;
-    int padding = 10;  // Space between windows
+    int padding = 10;  // space between windows
 
-    // Linear velocity window
+    // linear velocity window
     cvui::window(frame, 10, baseY, windowWidth, windowHeight, "Linear Velocity");
-    cvui::printf(frame, 15, baseY + 24, 0.35, 0x33ffff, "Linear velocity: %0.2f m/s", this->linear_velocity);
+    cvui::printf(frame, 15, baseY + 24, 0.40, 0x33ffff, 
+                 "Linear velocity: %0.2f m/s", this->linear_velocity);
 
-    // Angular velocity window
-    cvui::window(frame, 10 + windowWidth + padding, baseY, windowWidth, windowHeight, "Angular Velocity");
-    cvui::printf(frame, 15 + windowWidth + padding, baseY + 24, 0.35, 0x33ffff, "Angular velocity: %0.2f rad/s", this->angular_velocity);
+    // angular velocity window
+    cvui::window(frame, 10 + windowWidth + padding, baseY, windowWidth, 
+                 windowHeight, "Angular Velocity");
+    cvui::printf(frame, 15 + windowWidth + padding, baseY + 24, 0.40, 0x33ffff,     
+                 "Angular velocity: %0.2f rad/s", this->angular_velocity);
+}
+
+// 4. ROBOT POSITION (ODOMETRY DATA)
+// display current robot's position
+void RobotGUI::odometryRobotPosition(cv::Mat& frame) {
+    // Set up the window location and size
+    int posX = 10;  // Horizontal position of the window on the frame
+    int posY = 500;  // Vertical position from the top
+    int width = 380; // Width of the window
+    int height = 87; // Height of the window
+
+    // Create the window for displaying odometry data
+    cvui::window(frame, posX, posY, width, height, 
+                 "Estimated robot position based off odometry");
+
+    // Display the X, Y, Z coordinates in the window
+    int startX = posX + 15;  // Start position for text, slightly indented
+    int startY = posY + 25;  // Start position for text, vertically adjusted
+    int lineSpacing = 20;    // Space between lines of text
+
+    cvui::printf(frame, startX, startY, 0.6, 0xffffff, 
+                 "X: %0.17f", this->x_position);
+    cvui::printf(frame, startX, startY + lineSpacing, 0.6, 0xffffff, 
+                 "Y: %0.17f", this->y_position);
+    cvui::printf(frame, startX, startY + 2 * lineSpacing, 0.6, 0xffffff, 
+                 "Z: %0.17f", this->z_position); 
 }
 //---------------------------------------------------------------------------------------
 
 // additional utilities for the GUI app
 //--------------------------------------------------------------------------------------------------------
-// GENERAL ROBOT INFFO AREA
+// 1. GENERAL ROBOT INFFO AREA
 //######################################################################################################
 // timeout utility for robot info subscriber (general info area)
 void RobotGUI::resetDisplayData() {
@@ -167,18 +202,26 @@ void RobotGUI::robotinfoCallback(const robotinfo_msgs::RobotInfo10Fields::ConstP
 }
 //######################################################################################################
 
-// TELEOPERATION BUTTONS
+// 2. TELEOPERATION BUTTONS
 // timer callback to publish velocity (teleoperation buttons)
 void RobotGUI::publishVelocity(const ros::TimerEvent&) {
     velocity_pub.publish(velocity_data);
 }
 
-// CURENT VELOCITIES
+// 3. CURENT VELOCITIES
 // subscriber callback function for current velocities
 void RobotGUI::velocitiesCallback(const geometry_msgs::Twist::ConstPtr &velocities_data) {
     this->linear_velocity = velocities_data->linear.x;
     this->angular_velocity = velocities_data->angular.z;
     ROS_DEBUG("Robot current velocities data updated.");
+}
+
+// 4. ROBOT POSITION (ODOMETRY DATA)
+void RobotGUI::positionCallback(const nav_msgs::Odometry::ConstPtr& position_data) {
+    this->x_position = position_data->pose.pose.position.x;
+    this->y_position = position_data->pose.pose.position.y;
+    this->z_position = position_data->pose.pose.position.z;
+    ROS_DEBUG("Robot current position data updated.");
 }
 //--------------------------------------------------------------------------------------------------------
 
@@ -207,6 +250,7 @@ void RobotGUI::run() {
     generalInfoArea(frame);
     teleoperationButtons(frame);
     currentVelocities(frame);
+    odometryRobotPosition(frame);
     
     // update cvui internal stuff
     cvui::update();
